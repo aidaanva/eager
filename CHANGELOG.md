@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * [#286](https://github.com/nf-core/eager/issues/286) - Adds pipeline-specific profiles (loaded from nf-core configs)
 * [#310](https://github.com/nf-core/eager/issues/310) - Generalises base.config
 * [#326](https://github.com/nf-core/eager/pull/326) - Add Biopython and [xopen](https://github.com/marcelm/xopen/) dependancies
-* [#90](https://github.com/nf-core/eager/issues/90) - Added endogenous DNA calculator endorS.py (original repository: https://github.com/aidaanva/endorS.py)
+* [#90](https://github.com/nf-core/eager/issues/90) - Added endogenous DNA calculator endorS.py (original repository: [https://github.com/aidaanva/endorS.py](https://github.com/aidaanva/endorS.py))
 
 ### `Fixed`
 
