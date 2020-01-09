@@ -60,6 +60,7 @@ def helpMessage() {
       --skip_damage_calculation
       --skip_qualimap
       --skip_deduplication
+      --
 
     Complexity Filtering 
       --complexity_filter_poly_g        Run poly-G removal on FASTQ files
@@ -1197,7 +1198,7 @@ process samtools_flagstat {
     file(bam) from ch_mapping_for_samtools_flagstat
 
     output:
-    file "*.stats" into ch_flagstat_for_multiqc
+    set val(prefix), file("*stats") into ch_flagstat_for_multiqc,ch_flagstat_for_endorspy
 
     script:
     prefix = "$bam" - ~/(\.bam)?$/
@@ -1272,7 +1273,6 @@ process samtools_filter {
     }  
 }
 
-
 // samtools_filter bypass 
 if (params.run_bam_filtering) {
     ch_mapping_for_skipfiltering.mix(ch_output_from_filtering)
@@ -1291,8 +1291,6 @@ if (params.run_bam_filtering) {
         .into { ch_filteringindex_for_skiprmdup; ch_filteringindex_for_dedup; ch_filteringindex_for_markdup } 
 
 }
-
-
 
 
 process strip_input_fastq {
@@ -1349,15 +1347,53 @@ process samtools_flagstat_after_filter {
     file(bam) from ch_filtering_for_flagstat
 
     output:
-    file "*.stats" into ch_bam_filtered_flagstat_for_multiqc
+    set val(prefix), file("*stats") into ch_bam_filtered_flagstat_for_multiqc, ch_bam_filtered_flagstat_for_endorspy
 
     script:
-    prefix = "$bam" - ~/(\.bam)?$/
+    prefix = "$bam" - ~/(\.bam.filtered.bam)?$/
+
     """
     samtools flagstat $bam > ${prefix}_postfilterflagstat.stats
     """
 }
 
+/*
+* Step 4c: Keep unmapped/remove unmapped reads flagstat
+*/
+
+// merge tuples, for when filtered has been run
+
+if (params.run_bam_filtering) {
+  ch_flagstat_for_endorspy
+    .mix(ch_bam_filtered_flagstat_for_endorspy)
+    .groupTuple(by: 0)
+    .set{ ch_allflagstats_for_endorspy }
+} else {
+  ch_flagstat_for_endorspy
+    .groupTuple(by: 0)
+    .set{ ch_allflagstats_for_endorspy }
+}
+
+process endorSpy {
+    label 'sc_tiny'
+    tag "$prefix"
+    publishDir "${params.outdir}/endorSpy", mode: 'copy'
+
+    when:
+    !params.skip_mapping
+
+    input:
+    set val(name), file(stats) from ch_allflagstats_for_endorspy
+
+    output:
+    file "*.json" into ch_endorspy_for_multiqc
+
+    script:
+    prefix = "${name}"
+    """
+    endorS.py ${stats} -o json
+    """
+}
 
 /*
 Step 5a: DeDup
@@ -2224,6 +2260,7 @@ process multiqc {
     file ('fastp/*') from ch_fastp_for_multiqc.collect().ifEmpty([])
     file ('sexdeterrmine/*') from ch_sexdet_for_multiqc.collect().ifEmpty([])
     file ('mutnucratio/*') from ch_mtnucratio_for_multiqc.collect().ifEmpty([])
+    file ('endorspy/*') from ch_endorspy_for_multiqc.collect().ifEmpty([])
 
     file workflow_summary from create_workflow_summary(summary)
 
